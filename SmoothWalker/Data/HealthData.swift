@@ -27,6 +27,7 @@ class HealthData {
             HKQuantityTypeIdentifier.stepCount.rawValue,
             HKQuantityTypeIdentifier.distanceWalkingRunning.rawValue,
             HKQuantityTypeIdentifier.sixMinuteWalkTestDistance.rawValue
+            
         ]
         
         return typeIdentifiers.compactMap { getSampleType(for: $0) }

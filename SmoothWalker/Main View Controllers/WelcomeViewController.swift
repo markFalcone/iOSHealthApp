@@ -5,12 +5,86 @@ Abstract:
 A view controller that onboards users to the app.
 */
 
+
+
 import UIKit
 import HealthKit
 
-class WelcomeViewController: SplashScreenViewController, SplashScreenViewControllerDelegate {
+class WelcomeViewController: SplashScreenViewController, SplashScreenViewControllerDelegate, UITextFieldDelegate, HealthQueryDataSource {
+
+    var dataTypeIdentifier: String = ""
+    var dataValues: [HealthDataTypeValue] = []
+    var query: HKStatisticsCollectionQuery?
+    var quantityType: HKQuantityType {
+        return HKQuantityType.quantityType(forIdentifier: quantityTypeIdentifier)!
+    }
+    var quantityTypeIdentifier: HKQuantityTypeIdentifier {
+        return HKQuantityTypeIdentifier(rawValue: dataTypeIdentifier)
+    }
+    
+    
+    
+    
+    func performQuery(completion: @escaping () -> Void) {
+        let predicate = createLastWeekPredicate()
+        let anchorDate = createAnchorDate()
+        let dailyInterval = DateComponents(day: 1)
+        let statisticsOptions = getStatisticsOptions(for: dataTypeIdentifier)
+
+        let query = HKStatisticsCollectionQuery(quantityType: quantityType,
+                                                 quantitySamplePredicate: predicate,
+                                                 options: statisticsOptions,
+                                                 anchorDate: anchorDate,
+                                                 intervalComponents: dailyInterval)
+        print(query)
+        // The handler block for the HKStatisticsCollection object.
+        let updateInterfaceWithStatistics: (HKStatisticsCollection) -> Void = { statisticsCollection in
+            self.dataValues = []
+            
+            let now = Date()
+            let startDate = getLastWeekStartDate()
+            let endDate = now
+            
+            statisticsCollection.enumerateStatistics(from: startDate, to: endDate) { [weak self] (statistics, stop) in
+                var dataValue = HealthDataTypeValue(startDate: statistics.startDate,
+                                                    endDate: statistics.endDate,
+                                                    value: 0)
+                
+                if let quantity = getStatisticsQuantity(for: statistics, with: statisticsOptions),
+                   let identifier = self?.dataTypeIdentifier,
+                   let unit = preferredUnit(for: identifier) {
+                    dataValue.value = quantity.doubleValue(for: unit)
+                }
+                
+                self?.dataValues.append(dataValue)
+            }
+            
+            completion()
+        }
+        
+        query.initialResultsHandler = { query, statisticsCollection, error in
+            if let statisticsCollection = statisticsCollection {
+                updateInterfaceWithStatistics(statisticsCollection)
+            }
+        }
+        
+        query.statisticsUpdateHandler = { [weak self] query, statistics, statisticsCollection, error in
+            // Ensure we only update the interface if the visible data type is updated
+            if let statisticsCollection = statisticsCollection, query.objectType?.identifier == self?.dataTypeIdentifier {
+                updateInterfaceWithStatistics(statisticsCollection)
+            }
+        }
+        
+        self.healthStore.execute(query)
+        self.query = query
+    }
+
+    
     
     let healthStore = HealthData.healthStore
+    var userEmail:String!
+    var firstName:String!
+    var lastName:String!
     
     /// The HealthKit data types we will request to read.
     let readTypes = Set(HealthData.readDataTypes)
@@ -20,7 +94,9 @@ class WelcomeViewController: SplashScreenViewController, SplashScreenViewControl
     var hasRequestedHealthData: Bool = false
     
     // MARK: - View Life Cycle
-    
+    let emailTextField =  UITextField(frame: CGRect(x: 20, y: 100, width: 300, height: 40))
+    let firstNameTextField = UITextField(frame: CGRect(x: 20, y: 150, width: 300, height: 40))
+    let lastNameTextField = UITextField(frame: CGRect(x: 20, y: 200, width: 300, height: 40))
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -28,10 +104,98 @@ class WelcomeViewController: SplashScreenViewController, SplashScreenViewControl
         view.backgroundColor = .systemBackground
         splashScreenDelegate = self
         actionButton.setTitle("Authorize HealthKit Access", for: .normal)
-
+        
+       
+       emailTextField.placeholder = "Enter email here"
+       emailTextField.font = UIFont.systemFont(ofSize: 20)
+       emailTextField.borderStyle = UITextField.BorderStyle.roundedRect
+       emailTextField.autocorrectionType = UITextAutocorrectionType.no
+       emailTextField.keyboardType = UIKeyboardType.default
+       emailTextField.returnKeyType = UIReturnKeyType.done
+       emailTextField.clearButtonMode = UITextField.ViewMode.whileEditing
+       emailTextField.contentVerticalAlignment = UIControl.ContentVerticalAlignment.center
+       self.view.addSubview(emailTextField)
+        
+        firstNameTextField.placeholder = "Enter First Name here"
+        firstNameTextField.font = UIFont.systemFont(ofSize: 20)
+        firstNameTextField.borderStyle = UITextField.BorderStyle.roundedRect
+        firstNameTextField.autocorrectionType = UITextAutocorrectionType.no
+        firstNameTextField.keyboardType = UIKeyboardType.default
+        firstNameTextField.returnKeyType = UIReturnKeyType.done
+        firstNameTextField.clearButtonMode = UITextField.ViewMode.whileEditing
+        firstNameTextField.contentVerticalAlignment = UIControl.ContentVerticalAlignment.center
+        self.view.addSubview(firstNameTextField)
+        
+        lastNameTextField.placeholder = "Enter Last Name here"
+        lastNameTextField.font = UIFont.systemFont(ofSize: 20)
+        lastNameTextField.borderStyle = UITextField.BorderStyle.roundedRect
+        lastNameTextField.autocorrectionType = UITextAutocorrectionType.no
+        lastNameTextField.keyboardType = UIKeyboardType.default
+        lastNameTextField.returnKeyType = UIReturnKeyType.done
+        lastNameTextField.clearButtonMode = UITextField.ViewMode.whileEditing
+        lastNameTextField.contentVerticalAlignment = UIControl.ContentVerticalAlignment.center
+        self.view.addSubview(lastNameTextField)
+        
+    
+        let myFirstButton = UIButton()
+        myFirstButton.setTitle("SAVE", for: .normal)
+        myFirstButton.setTitleColor(.blue, for: .normal)
+        myFirstButton.frame = CGRect(x: 15, y: 250, width: 300, height: 40)
+        myFirstButton.addTarget(self, action: #selector(pressed), for: .touchUpInside)
+        self.view.addSubview(myFirstButton)
+        
+        
         getHealthAuthorizationRequestStatus()
     }
     
+    @objc func pressed() {
+        print("Pressed")
+        userEmail = emailTextField.text!
+        firstName = firstNameTextField.text!
+        lastName = lastNameTextField.text!
+       // print(userEmail)
+        // Call api
+       // let data =  ServerResponse(from: Decoder.self as! Decoder).weeklyReport
+        //print(type(of: data))
+        //apiCall(firstName: firstName, lastName: lastName, email: userEmail, HealthData: <#T##[String : AnyHashable]#>)
+        let pathName = "MockServerResponse"
+        let file = Bundle.main.url(forResource: pathName, withExtension: "json")
+        let data = try? Data(contentsOf: file!)
+        let decoder = JSONDecoder()
+        let serverResponse = try? decoder.decode(ServerResponse.self, from: data!)
+        var healthData: [HealthDataTypeValue] = []
+        let updateInterfaceWithStatistics: (HKStatisticsCollection) -> Void = { statisticsCollection in
+            self.dataValues = []
+            
+            let now = Date()
+            let startDate = getLastWeekStartDate()
+            let endDate = now
+            
+            statisticsCollection.enumerateStatistics(from: startDate, to: endDate) { [weak self] (statistics, stop) in
+                var dataValue = HealthDataTypeValue(startDate: statistics.startDate,
+                                                    endDate: statistics.endDate,
+                                                    value: 0)
+                
+                if let quantity = getStatisticsQuantity(for: statistics, with: statisticsOptions),
+                   let identifier = self?.dataTypeIdentifier,
+                   let unit = preferredUnit(for: identifier) {
+                    dataValue.value = quantity.doubleValue(for: unit)
+                }
+                
+                self?.dataValues.append(dataValue)
+            }
+            
+            completion()
+        }
+        
+        
+        
+        
+        
+        
+    print("data")
+        print(healthData)
+    }
     func getHealthAuthorizationRequestStatus() {
         print("Checking HealthKit authorization status...")
         
@@ -78,6 +242,33 @@ class WelcomeViewController: SplashScreenViewController, SplashScreenViewControl
     func didSelectActionButton() {
         requestHealthAuthorization()
     }
+    
+    
+    func apiCall(firstName:String, lastName: String, email:String, HealthData:[String:AnyHashable]){
+            guard let url = URL(string: "https://magicmirrorhealth-developer-edition.na163.force.com/services/apexrest/postHealth?firstname=\(firstName)&lastname=\(lastName)&email=\(email)")else{
+                return
+            }
+       
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String:AnyHashable] = HealthData//TODO ADD HEALTH DATA
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .fragmentsAllowed)
+        
+        let task = URLSession.shared.dataTask(with: request){data, _, error in
+            guard let data = data, error == nil else {
+                return
+            }
+            do{
+                let responce = try JSONSerialization.jsonObject(with: data, options: .allowFragments)
+                print("success")
+            }catch{
+                print(error)
+            }
+        }
+        task.resume()
+        }
+    
     
     func requestHealthAuthorization() {
         print("Requesting HealthKit authorization...")

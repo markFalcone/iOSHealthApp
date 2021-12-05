@@ -90,6 +90,7 @@ class DataTableViewController: UITableViewController {
         }
         
         let dataValue = dataValues[indexPath.row]
+        print(dataValue.value)
         
         cell.textLabel?.text = formattedValue(dataValue.value, typeIdentifier: dataTypeIdentifier)
         cell.detailTextLabel?.text = dateFormatter.string(from: dataValue.startDate)

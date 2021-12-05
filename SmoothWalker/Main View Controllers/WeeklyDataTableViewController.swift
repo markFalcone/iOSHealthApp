@@ -63,7 +63,7 @@ class WeeklyQuantitySampleTableViewController: HealthDataTableViewController, He
                                                  options: statisticsOptions,
                                                  anchorDate: anchorDate,
                                                  intervalComponents: dailyInterval)
-        
+        print(query)
         // The handler block for the HKStatisticsCollection object.
         let updateInterfaceWithStatistics: (HKStatisticsCollection) -> Void = { statisticsCollection in
             self.dataValues = []
