@@ -10,77 +10,9 @@ A view controller that onboards users to the app.
 import UIKit
 import HealthKit
 
-class WelcomeViewController: SplashScreenViewController, SplashScreenViewControllerDelegate, UITextFieldDelegate, HealthQueryDataSource {
+class WelcomeViewController: SplashScreenViewController, SplashScreenViewControllerDelegate, UITextFieldDelegate {
 
-    var dataTypeIdentifier: String = ""
-    var dataValues: [HealthDataTypeValue] = []
-    var query: HKStatisticsCollectionQuery?
-    var quantityType: HKQuantityType {
-        return HKQuantityType.quantityType(forIdentifier: quantityTypeIdentifier)!
-    }
-    var quantityTypeIdentifier: HKQuantityTypeIdentifier {
-        return HKQuantityTypeIdentifier(rawValue: dataTypeIdentifier)
-    }
-    
-    
-    
-    
-    func performQuery(completion: @escaping () -> Void) {
-        let predicate = createLastWeekPredicate()
-        let anchorDate = createAnchorDate()
-        let dailyInterval = DateComponents(day: 1)
-        let statisticsOptions = getStatisticsOptions(for: dataTypeIdentifier)
 
-        let query = HKStatisticsCollectionQuery(quantityType: quantityType,
-                                                 quantitySamplePredicate: predicate,
-                                                 options: statisticsOptions,
-                                                 anchorDate: anchorDate,
-                                                 intervalComponents: dailyInterval)
-        print(query)
-        // The handler block for the HKStatisticsCollection object.
-        let updateInterfaceWithStatistics: (HKStatisticsCollection) -> Void = { statisticsCollection in
-            self.dataValues = []
-            
-            let now = Date()
-            let startDate = getLastWeekStartDate()
-            let endDate = now
-            
-            statisticsCollection.enumerateStatistics(from: startDate, to: endDate) { [weak self] (statistics, stop) in
-                var dataValue = HealthDataTypeValue(startDate: statistics.startDate,
-                                                    endDate: statistics.endDate,
-                                                    value: 0)
-                
-                if let quantity = getStatisticsQuantity(for: statistics, with: statisticsOptions),
-                   let identifier = self?.dataTypeIdentifier,
-                   let unit = preferredUnit(for: identifier) {
-                    dataValue.value = quantity.doubleValue(for: unit)
-                }
-                
-                self?.dataValues.append(dataValue)
-            }
-            
-            completion()
-        }
-        
-        query.initialResultsHandler = { query, statisticsCollection, error in
-            if let statisticsCollection = statisticsCollection {
-                updateInterfaceWithStatistics(statisticsCollection)
-            }
-        }
-        
-        query.statisticsUpdateHandler = { [weak self] query, statistics, statisticsCollection, error in
-            // Ensure we only update the interface if the visible data type is updated
-            if let statisticsCollection = statisticsCollection, query.objectType?.identifier == self?.dataTypeIdentifier {
-                updateInterfaceWithStatistics(statisticsCollection)
-            }
-        }
-        
-        self.healthStore.execute(query)
-        self.query = query
-    }
-
-    
-    
     let healthStore = HealthData.healthStore
     var userEmail:String!
     var firstName:String!
@@ -97,6 +29,7 @@ class WelcomeViewController: SplashScreenViewController, SplashScreenViewControl
     let emailTextField =  UITextField(frame: CGRect(x: 20, y: 100, width: 300, height: 40))
     let firstNameTextField = UITextField(frame: CGRect(x: 20, y: 150, width: 300, height: 40))
     let lastNameTextField = UITextField(frame: CGRect(x: 20, y: 200, width: 300, height: 40))
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -164,37 +97,11 @@ class WelcomeViewController: SplashScreenViewController, SplashScreenViewControl
         let decoder = JSONDecoder()
         let serverResponse = try? decoder.decode(ServerResponse.self, from: data!)
         var healthData: [HealthDataTypeValue] = []
-        let updateInterfaceWithStatistics: (HKStatisticsCollection) -> Void = { statisticsCollection in
-            self.dataValues = []
-            
-            let now = Date()
-            let startDate = getLastWeekStartDate()
-            let endDate = now
-            
-            statisticsCollection.enumerateStatistics(from: startDate, to: endDate) { [weak self] (statistics, stop) in
-                var dataValue = HealthDataTypeValue(startDate: statistics.startDate,
-                                                    endDate: statistics.endDate,
-                                                    value: 0)
-                
-                if let quantity = getStatisticsQuantity(for: statistics, with: statisticsOptions),
-                   let identifier = self?.dataTypeIdentifier,
-                   let unit = preferredUnit(for: identifier) {
-                    dataValue.value = quantity.doubleValue(for: unit)
-                }
-                
-                self?.dataValues.append(dataValue)
-            }
-            
-            completion()
-        }
+        WeeklyQuantitySampleTableViewController.sendAPI(firstName: firstName, lastName: lastName, email: userEmail)
         
+   
         
-        
-        
-        
-        
-    print("data")
-        print(healthData)
+
     }
     func getHealthAuthorizationRequestStatus() {
         print("Checking HealthKit authorization status...")

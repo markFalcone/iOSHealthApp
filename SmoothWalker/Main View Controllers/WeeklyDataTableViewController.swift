@@ -51,7 +51,30 @@ class WeeklyQuantitySampleTableViewController: HealthDataTableViewController, He
     }
     
     // MARK: - HealthQueryDataSource
-    
+    func sendAPI(firstName:String, lastName:String, email:String){
+        guard let url = URL(string: "https://magicmirrorhealth-developer-edition.na163.force.com/services/apexrest/postHealth?firstname=\(firstName)&lastname=\(lastName)&email=\(email)")else{
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [ HealthDataTypeValue] = self.dataValues//TODO ADD HEALTH DATA
+    request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .fragmentsAllowed)
+
+    let task = URLSession.shared.dataTask(with: request){data, _, error in
+        guard let data = data, error == nil else {
+            return
+        }
+        do{
+            let responce = try JSONSerialization.jsonObject(with: data, options: .allowFragments)
+            print("success")
+        }catch{
+            print(error)
+        }
+    }
+    task.resume()
+    }
     func performQuery(completion: @escaping () -> Void) {
         let predicate = createLastWeekPredicate()
         let anchorDate = createAnchorDate()
