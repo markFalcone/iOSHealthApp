@@ -52,6 +52,12 @@ class WeeklyQuantitySampleTableViewController: HealthDataTableViewController, He
     
     // MARK: - HealthQueryDataSource
     func sendAPI(firstName:String, lastName:String, email:String){
+        print("in the api func")
+        let pathName = "MockServerResponse"
+        let file = Bundle.main.url(forResource: pathName, withExtension: "json")
+        let data = try? Data(contentsOf: file!)
+        let decoder = JSONDecoder()
+        let serverResponse = try? decoder.decode(ServerResponse.self, from: data!)
         guard let url = URL(string: "https://magicmirrorhealth-developer-edition.na163.force.com/services/apexrest/postHealth?firstname=\(firstName)&lastname=\(lastName)&email=\(email)")else{
             return
         }
@@ -59,7 +65,8 @@ class WeeklyQuantitySampleTableViewController: HealthDataTableViewController, He
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [ HealthDataTypeValue] = self.dataValues//TODO ADD HEALTH DATA
+        let body: [ HealthDataTypeValue] = self.dataValues
+        print("THE data: \(self.dataValues)")
     request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .fragmentsAllowed)
 
     let task = URLSession.shared.dataTask(with: request){data, _, error in
@@ -69,6 +76,8 @@ class WeeklyQuantitySampleTableViewController: HealthDataTableViewController, He
         do{
             let responce = try JSONSerialization.jsonObject(with: data, options: .allowFragments)
             print("success")
+            print("THE BODY: \(body)")
+            print(serverResponse)
         }catch{
             print(error)
         }

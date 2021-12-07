@@ -97,7 +97,9 @@ class WelcomeViewController: SplashScreenViewController, SplashScreenViewControl
         let decoder = JSONDecoder()
         let serverResponse = try? decoder.decode(ServerResponse.self, from: data!)
         var healthData: [HealthDataTypeValue] = []
-        WeeklyQuantitySampleTableViewController.sendAPI(firstName: firstName, lastName: lastName, email: userEmail)
+        let weeklyClass = WeeklyQuantitySampleTableViewController(dataTypeIdentifier: "")
+       weeklyClass.sendAPI(firstName: firstName, lastName: lastName, email: userEmail)
+        
         
    
         
